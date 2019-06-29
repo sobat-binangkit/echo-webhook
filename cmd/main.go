@@ -28,7 +28,7 @@ func main() {
 	if domain == "" {
 		e.Logger.Fatal(e.Start(":8080"))
 	} else {
-		e.AutoTLSManager.HostPolicy = autocert.HostWhitelist("webhook.id")
+		e.AutoTLSManager.HostPolicy = autocert.HostWhitelist(domain)
 		// Cache certificates
 		e.AutoTLSManager.Cache = autocert.DirCache(".")
 		e.Logger.Fatal(e.StartAutoTLS(":443"))
