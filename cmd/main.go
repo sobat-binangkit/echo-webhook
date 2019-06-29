@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/labstack/echo"
-	"github.com/sobat-binangkit/webhook/handlers"
+	"github.com/sobat-binangkit/echo-setup/handlers"
 
 	"golang.org/x/crypto/acme/autocert"
 )
