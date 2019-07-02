@@ -27,13 +27,15 @@ func main() {
 
 	httpaddr := os.Getenv("HTTP_PORT")
 	if httpaddr == "" {
-		httpaddr = ":8080"
+		httpaddr = "8080"
 	}
+	httpaddr = ":" + httoaddr
 
 	ssladdr := os.Getenv("HTTPS_PORT")
 	if ssladdr == "" {
-		ssladdr = ":8443"
+		ssladdr = "8443"
 	}
+	ssladdr = ":" + ssladdr
 
 	fmt.Printf("Domain name = %s\n", domain)
 	fmt.Printf("Data directory = %s\n", datapath)
