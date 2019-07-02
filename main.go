@@ -29,7 +29,7 @@ func main() {
 	if httpaddr == "" {
 		httpaddr = "8080"
 	}
-	httpaddr = ":" + httoaddr
+	httpaddr = ":" + httpaddr
 
 	ssladdr := os.Getenv("HTTPS_PORT")
 	if ssladdr == "" {
