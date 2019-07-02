@@ -10,7 +10,7 @@ LABEL maintainer="Sobat Binangkit<sobat.binangkit@gmail.com>"
 # Git is required for fetching the dependencies.
 RUN apk update && apk add --no-cache git
 
-WORKDIR $GOPATH/src/github.com/sobat-binangkit/echo-setup
+WORKDIR /go/src/github.com/sobat-binangkit/echo-setup
 
 # Get the source from github.com.
 RUN git clone https://github.com/sobat-binangkit/echo-setup.git .
@@ -20,7 +20,7 @@ RUN git clone https://github.com/sobat-binangkit/echo-setup.git .
 RUN go get -d -v
 
 # Build the binary.
-RUN go build -o $GOPATH/bin/main
+RUN CGO_ENABLED=0 GOOS=linux go build -a -o echobase .
 
 ############################
 # STEP 2 build a small image
@@ -28,10 +28,7 @@ RUN go build -o $GOPATH/bin/main
 
 FROM scratch
 
-ARG domain_name
-
 # Environment Variables
-ENV DOMAIN_NAME=domain_name
 ENV DATA_PATH=/app/data
 ENV HTTP_PORT=8080
 ENV HTTPS_PORT=8585 
@@ -39,7 +36,7 @@ ENV HTTPS_PORT=8585
 WORKDIR /app
 
 # Copy our static executable.
-COPY --from=builder $GOPATH/bin/main .
+COPY --from=builder /go/src/github.com/sobat-binangkit/echo-setup/echobase .
 
 # Run the hello binary.
-ENTRYPOINT ["/app/main"]
+ENTRYPOINT ["/app/echobase"]
