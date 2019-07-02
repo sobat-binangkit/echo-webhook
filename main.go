@@ -26,6 +26,7 @@ func main() {
 	domain := os.Getenv("DOMAIN_NAME")
 
 	fmt.Printf("Domain name = %s\n", domain)
+	fmt.Printf("Data directory = %s\n", datapath)
 	fmt.Printf("Setting handler for %s\n", path)
 
 	e.GET(path, handlers.HelloWorldHandler)
