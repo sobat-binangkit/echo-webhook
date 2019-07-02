@@ -25,6 +25,16 @@ func main() {
 
 	domain := os.Getenv("DOMAIN_NAME")
 
+	httpaddr := os.Getenv("HTTP_PORT")
+	if httpaddr == "" {
+		httpaddr = ":8080"
+	}
+
+	ssladdr := os.Getenv("HTTPS_PORT")
+	if ssladdr == "" {
+		ssladdr = ":8443"
+	}
+
 	fmt.Printf("Domain name = %s\n", domain)
 	fmt.Printf("Data directory = %s\n", datapath)
 	fmt.Printf("Setting handler for %s\n", path)
@@ -32,12 +42,12 @@ func main() {
 	e.GET(path, handlers.HelloWorldHandler)
 
 	if domain == "" {
-		e.Logger.Fatal(e.Start(":8080"))
+		e.Logger.Fatal(e.Start(httpaddr))
 	} else {
 		e.AutoTLSManager.HostPolicy = autocert.HostWhitelist(domain)
 		// Cache certificates
 		e.AutoTLSManager.Cache = autocert.DirCache(datapath)
-		e.Logger.Fatal(e.StartAutoTLS(":443"))
+		e.Logger.Fatal(e.StartAutoTLS(ssladdr))
 
 	}
 
