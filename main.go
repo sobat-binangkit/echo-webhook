@@ -3,12 +3,39 @@ package main
 import (
 	"fmt"
 	"os"
+	"plugin"
 
 	"github.com/labstack/echo"
-	"github.com/sobat-binangkit/echo-setup/handlers"
 
 	"golang.org/x/crypto/acme/autocert"
 )
+
+func getEchoHandlerFuncs(libname string, handlerNames map[string]string) map[string]echo.HandlerFunc {
+	handlers := make(map[string]echo.HandlerFunc)
+
+	p, err := plugin.Open(libname)
+	if err == nil {
+
+		for path, handlerName := range handlerNames {
+			sym, err := p.Lookup(handlerName)
+			if err == nil {
+				handler, ok := sym.(func(c echo.Context) error)
+				if ok {
+					handlers[path] = handler
+				} else {
+					fmt.Printf("%s not echo.HandlerFunc\n", handlerName)
+				}
+			} else {
+				fmt.Printf("Lookup Error = %s\n", err.Error())
+			}
+		}
+
+	} else {
+		fmt.Printf("Plugin.Open Error = %s\n", err.Error())
+	}
+
+	return handlers
+}
 
 func main() {
 	e := echo.New()
@@ -41,7 +68,19 @@ func main() {
 	fmt.Printf("Data directory = %s\n", datapath)
 	fmt.Printf("Setting handler for %s\n", path)
 
-	e.GET(path, handlers.HelloWorldHandler)
+	handlerNames := map[string]string{
+		"/": "GetHello",
+	}
+
+	fmt.Printf("handlerNames = %-v\n", handlerNames)
+
+	handlers := getEchoHandlerFuncs("./handlers/libhello.so", handlerNames)
+
+	fmt.Printf("handlers = %-v\n", handlers)
+
+	for pathname, handler := range handlers {
+		e.GET(pathname, handler)
+	}
 
 	if domain == "" {
 		e.Logger.Fatal(e.Start(httpaddr))
