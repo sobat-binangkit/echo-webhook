@@ -1,6 +1,8 @@
 package main
 
 import (
+	"time"
+
 	"net/http"
 
 	"github.com/labstack/echo"
@@ -14,5 +16,11 @@ func GetHello(c echo.Context) error {
 		name = "World"
 	}
 
-	return c.String(http.StatusOK, fmt.Sprintf("Hello %s !", name))
+	return c.String(http.StatusOK, fmt.Sprintf("Hello %s !\n", name))
+}
+
+func GetTimestamp(c echo.Context) error {
+	t := time.Now()
+
+	return c.String(http.StatusOK, fmt.Sprintf("Current Timestamp %s\n", t.Format(time.RFC1123Z)))
 }
