@@ -1,8 +1,10 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"plugin"
 
 	"github.com/labstack/echo"
@@ -10,31 +12,88 @@ import (
 	"golang.org/x/crypto/acme/autocert"
 )
 
-func getEchoHandlerFuncs(libname string, handlerNames map[string]string) map[string]echo.HandlerFunc {
-	handlers := make(map[string]echo.HandlerFunc)
+func changeFileExtension(filename, newext string) string {
+	ext := filepath.Ext(filename)
+	name := filename[0 : len(filename)-len(ext)]
+	return name + newext
+}
 
-	p, err := plugin.Open(libname)
+func getConfigMap(filename string) (configMap map[string]map[string]string) {
+	fmt.Printf("Loading %s...\n", filename)
+	configMap = make(map[string]map[string]string)
+
+	file, err := os.Open(filename)
+	if err == nil {
+		decoder := json.NewDecoder(file)
+		err = decoder.Decode(&configMap)
+	}
+
+	return configMap
+}
+
+func loadEchoHandlerFuncs(e *echo.Echo, dirname string) {
+
+	methods := []string{"POST", "GET", "PUT", "PATCH", "DELETE"}
+
+	filenames, err := filepath.Glob(dirname + "/*.json")
+
 	if err == nil {
 
-		for path, handlerName := range handlerNames {
-			sym, err := p.Lookup(handlerName)
+		e.Logger.Infof("Loading = %-v ...\n", filenames)
+
+		for _, filename := range filenames {
+
+			libname := changeFileExtension(filename, ".so")
+			e.Logger.Debugf("libname = %s\n", libname)
+
+			p, err := plugin.Open(libname)
+
 			if err == nil {
-				handler, ok := sym.(func(c echo.Context) error)
-				if ok {
-					handlers[path] = handler
-				} else {
-					fmt.Printf("%s not echo.HandlerFunc\n", handlerName)
+				handlers := make(map[string]echo.HandlerFunc)
+
+				configMap := getConfigMap(filename)
+				e.Logger.Debugf("configs : %-v\n", configMap)
+
+				for path, config := range configMap {
+
+					for _, method := range methods {
+
+						handlerName := config[method]
+						handler, ok := handlers[handlerName]
+						if !ok {
+							handler = getEchoHandlerFunc(p, handlerName)
+							handlers[handlerName] = handler
+						}
+						e.Add(method, path, handler)
+					}
+
 				}
 			} else {
-				fmt.Printf("Lookup Error = %s\n", err.Error())
+				e.Logger.Debugf("Fail to open %s [%s]\n", libname, err.Error())
 			}
+
 		}
 
 	} else {
-		fmt.Printf("Plugin.Open Error = %s\n", err.Error())
+		e.Logger.Debugf("Directory listing error = %s\n", err.Error())
 	}
 
-	return handlers
+}
+
+func getEchoHandlerFunc(p *plugin.Plugin, handlerName string) (handler echo.HandlerFunc) {
+
+	sym, err := p.Lookup(handlerName)
+	if err == nil {
+		ok := true
+		handler, ok = sym.(func(c echo.Context) error)
+		if !ok {
+			fmt.Printf("%s not echo.HandlerFunc\n", handlerName)
+		}
+	} else {
+		fmt.Printf("Lookup Error = %s\n", err.Error())
+	}
+
+	return handler
 }
 
 func main() {
@@ -64,23 +123,11 @@ func main() {
 	}
 	ssladdr = ":" + ssladdr
 
-	fmt.Printf("Domain name = %s\n", domain)
-	fmt.Printf("Data directory = %s\n", datapath)
-	fmt.Printf("Setting handler for %s\n", path)
+	e.Logger.Infof("Domain name = %s\n", domain)
+	e.Logger.Infof("Data directory = %s\n", datapath)
+	e.Logger.Infof("Setting handler for %s\n", path)
 
-	handlerNames := map[string]string{
-		"/": "GetHello",
-	}
-
-	fmt.Printf("handlerNames = %-v\n", handlerNames)
-
-	handlers := getEchoHandlerFuncs("./handlers/libhello.so", handlerNames)
-
-	fmt.Printf("handlers = %-v\n", handlers)
-
-	for pathname, handler := range handlers {
-		e.GET(pathname, handler)
-	}
+	loadEchoHandlerFuncs(e, "./handlers")
 
 	if domain == "" {
 		e.Logger.Fatal(e.Start(httpaddr))
