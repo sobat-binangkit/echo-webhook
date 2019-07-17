@@ -8,6 +8,7 @@ import (
 	"plugin"
 
 	"github.com/labstack/echo"
+	"github.com/labstack/gommon/log"
 
 	"golang.org/x/crypto/acme/autocert"
 )
@@ -19,7 +20,6 @@ func changeFileExtension(filename, newext string) string {
 }
 
 func getConfigMap(filename string) (configMap map[string]map[string]string) {
-	fmt.Printf("Loading %s...\n", filename)
 	configMap = make(map[string]map[string]string)
 
 	file, err := os.Open(filename)
@@ -58,13 +58,15 @@ func loadEchoHandlerFuncs(e *echo.Echo, dirname string) {
 
 					for _, method := range methods {
 
-						handlerName := config[method]
-						handler, ok := handlers[handlerName]
-						if !ok {
-							handler = getEchoHandlerFunc(p, handlerName)
-							handlers[handlerName] = handler
+						handlerName, ok := config[method]
+						if ok {
+							handler, ok := handlers[handlerName]
+							if !ok {
+								handler = getEchoHandlerFunc(p, handlerName)
+								handlers[handlerName] = handler
+							}
+							e.Add(method, path, handler)
 						}
-						e.Add(method, path, handler)
 					}
 
 				}
@@ -99,10 +101,28 @@ func getEchoHandlerFunc(p *plugin.Plugin, handlerName string) (handler echo.Hand
 func main() {
 	e := echo.New()
 
-	path := os.Getenv("WEBHOOK_PATH")
-	if path == "" {
-		path = "/"
+	level := os.Getenv("DEBUG_LEVEL")
+	if level == "" {
+		level = "INFO"
 	}
+
+	debugLvl := log.INFO
+	switch level {
+	case "DEBUG":
+		debugLvl = log.DEBUG
+	case "INFO":
+		debugLvl = log.INFO
+	case "WARN":
+		debugLvl = log.WARN
+	case "ERROR":
+		debugLvl = log.ERROR
+	case "OFF":
+		debugLvl = log.OFF
+	default:
+		debugLvl = log.INFO
+	}
+
+	e.Logger.SetLevel(debugLvl)
 
 	datapath := os.Getenv("DATA_PATH")
 	if datapath == "" {
@@ -125,7 +145,6 @@ func main() {
 
 	e.Logger.Infof("Domain name = %s\n", domain)
 	e.Logger.Infof("Data directory = %s\n", datapath)
-	e.Logger.Infof("Setting handler for %s\n", path)
 
 	loadEchoHandlerFuncs(e, "./handlers")
 
