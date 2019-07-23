@@ -11,6 +11,8 @@ import (
 	"github.com/labstack/gommon/log"
 
 	"golang.org/x/crypto/acme/autocert"
+
+	"github.com/sobat-binangkit/webhook/plugins"
 )
 
 func changeFileExtension(filename, newext string) string {
@@ -82,20 +84,55 @@ func loadEchoHandlerFuncs(e *echo.Echo, dirname string) {
 
 }
 
-func getEchoHandlerFunc(p *plugin.Plugin, handlerName string) (handler echo.HandlerFunc) {
+func getEchoHandlerFunc(p *plugin.Plugin, handlerName string) (wrapper echo.HandlerFunc) {
+
+	wrapper = nil
 
 	sym, err := p.Lookup(handlerName)
 	if err == nil {
+
 		ok := true
-		handler, ok = sym.(func(c echo.Context) error)
+
+		wrapper, ok = sym.(func(c echo.Context) error)
+
 		if !ok {
-			fmt.Printf("%s not echo.HandlerFunc\n", handlerName)
+			handler, ok := sym.(func(params map[string]interface{}) (interface{}, int, error))
+			if ok {
+				pmh := new(plugins.ParamMapHandler)
+				pmh.Handler = handler
+				wrapper = pmh.Wrapper
+			}
 		}
+
+		if !ok {
+			handler, ok := sym.(func(inp interface{}) (interface{}, int, error))
+			if ok {
+				sbh := new(plugins.SingleBindingHandler)
+				sbh.Handler = handler
+				wrapper = sbh.Wrapper
+			}
+		}
+
+		if !ok {
+			handler, ok := sym.(func(params map[string]interface{}, inp interface{}) (interface{}, int, error))
+			if ok {
+				sbpmh := new(plugins.SingleBindingWithParamMapHandler)
+				sbpmh.Handler = handler
+				wrapper = sbpmh.Wrapper
+			}
+		}
+
+		if !ok {
+			fmt.Printf("%s not webhook handler function.\n", handlerName)
+		}
+
 	} else {
+
 		fmt.Printf("Lookup Error = %s\n", err.Error())
+
 	}
 
-	return handler
+	return wrapper
 }
 
 func main() {
