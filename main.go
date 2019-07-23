@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"plugin"
+	"reflect"
 
 	"github.com/labstack/echo"
 	"github.com/labstack/gommon/log"
@@ -89,14 +90,18 @@ func getEchoHandlerFunc(p *plugin.Plugin, handlerName string) (wrapper echo.Hand
 	wrapper = nil
 
 	sym, err := p.Lookup(handlerName)
+
+	symtype := reflect.TypeOf(sym)
+	fmt.Printf("%s[%s] : %s\n", symtype.Name(), symtype.Kind(), symtype.String())
+
 	if err == nil {
 
 		ok := true
 
-		wrapper, ok = sym.(func(c echo.Context) error)
+		wrapper, ok = sym.(func(echo.Context) error)
 
 		if !ok {
-			handler, ok := sym.(func(params map[string]interface{}) (interface{}, int, error))
+			handler, ok := sym.(func(map[string]interface{}) (interface{}, int, error))
 			if ok {
 				pmh := new(plugins.ParamMapHandler)
 				pmh.Handler = handler
@@ -105,7 +110,7 @@ func getEchoHandlerFunc(p *plugin.Plugin, handlerName string) (wrapper echo.Hand
 		}
 
 		if !ok {
-			handler, ok := sym.(func(inp interface{}) (interface{}, int, error))
+			handler, ok := sym.(func(interface{}) (interface{}, int, error))
 			if ok {
 				sbh := new(plugins.SingleBindingHandler)
 				sbh.Handler = handler
@@ -114,7 +119,7 @@ func getEchoHandlerFunc(p *plugin.Plugin, handlerName string) (wrapper echo.Hand
 		}
 
 		if !ok {
-			handler, ok := sym.(func(params map[string]interface{}, inp interface{}) (interface{}, int, error))
+			handler, ok := sym.(func(map[string]interface{}, interface{}) (interface{}, int, error))
 			if ok {
 				sbpmh := new(plugins.SingleBindingWithParamMapHandler)
 				sbpmh.Handler = handler
