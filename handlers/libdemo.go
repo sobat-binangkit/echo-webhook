@@ -1,8 +1,9 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
+
+	"github.com/labstack/echo"
 )
 
 type (
@@ -12,22 +13,23 @@ type (
 	}
 )
 
-func GetHelloHandler(cfg HelloConfig) (interface{}, int, error) {
+func GetHelloHandler(c echo.Context) (err error) {
 
-	res := make(map[string]string)
+	cfg := new(HelloConfig)
 
-	greeting := cfg.Greeting
-	if greeting == "" {
-		greeting = "Hello"
+	err = c.Bind(cfg)
+	if err != nil {
+		c.Logger().Warnf("Binding error : %s", err.Error())
 	}
 
-	name := cfg.Name
-	if name == "" {
-		name = "World"
+	if cfg.Greeting == "" {
+		cfg.Greeting = "Hello"
 	}
 
-	res["result"] = fmt.Sprintf("%s %s !", greeting, name)
+	if cfg.Name == "" {
+		cfg.Name = "World"
+	}
 
-	return res, http.StatusOK, nil
+	return c.JSON(http.StatusOK, cfg)
 
 }
