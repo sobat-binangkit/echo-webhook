@@ -1,12 +1,7 @@
 package main
 
 import (
-	"encoding/json"
-	"fmt"
 	"os"
-	"path/filepath"
-	"plugin"
-	"reflect"
 
 	"github.com/labstack/echo"
 	"github.com/labstack/gommon/log"
@@ -15,130 +10,6 @@ import (
 
 	"github.com/sobat-binangkit/webhook/plugins"
 )
-
-func changeFileExtension(filename, newext string) string {
-	ext := filepath.Ext(filename)
-	name := filename[0 : len(filename)-len(ext)]
-	return name + newext
-}
-
-func getConfigMap(filename string) (configMap map[string]map[string]string) {
-	configMap = make(map[string]map[string]string)
-
-	file, err := os.Open(filename)
-	if err == nil {
-		decoder := json.NewDecoder(file)
-		err = decoder.Decode(&configMap)
-	}
-
-	return configMap
-}
-
-func loadEchoHandlerFuncs(e *echo.Echo, dirname string) {
-
-	methods := []string{"POST", "GET", "PUT", "PATCH", "DELETE"}
-
-	filenames, err := filepath.Glob(dirname + "/*.json")
-
-	if err == nil {
-
-		e.Logger.Infof("Loading = %-v ...\n", filenames)
-
-		for _, filename := range filenames {
-
-			libname := changeFileExtension(filename, ".so")
-			e.Logger.Debugf("libname = %s\n", libname)
-
-			p, err := plugin.Open(libname)
-
-			if err == nil {
-				handlers := make(map[string]echo.HandlerFunc)
-
-				configMap := getConfigMap(filename)
-				e.Logger.Debugf("configs : %-v\n", configMap)
-
-				for path, config := range configMap {
-
-					for _, method := range methods {
-
-						handlerName, ok := config[method]
-						if ok {
-							handler, ok := handlers[handlerName]
-							if !ok {
-								handler = getEchoHandlerFunc(p, handlerName)
-								handlers[handlerName] = handler
-							}
-							e.Add(method, path, handler)
-						}
-					}
-
-				}
-			} else {
-				e.Logger.Debugf("Fail to open %s [%s]\n", libname, err.Error())
-			}
-
-		}
-
-	} else {
-		e.Logger.Debugf("Directory listing error = %s\n", err.Error())
-	}
-
-}
-
-func getEchoHandlerFunc(p *plugin.Plugin, handlerName string) (wrapper echo.HandlerFunc) {
-
-	wrapper = nil
-
-	sym, err := p.Lookup(handlerName)
-
-	symtype := reflect.TypeOf(sym)
-	fmt.Printf("%s[%s] : %s\n", symtype.Name(), symtype.Kind(), symtype.String())
-
-	if err == nil {
-
-		ok := true
-
-		wrapper, ok = sym.(func(echo.Context) error)
-
-		if !ok {
-			handler, ok := sym.(func(map[string]interface{}) (interface{}, int, error))
-			if ok {
-				pmh := new(plugins.ParamMapHandler)
-				pmh.Handler = handler
-				wrapper = pmh.Wrapper
-			}
-		}
-
-		if !ok {
-			handler, ok := sym.(func(interface{}) (interface{}, int, error))
-			if ok {
-				sbh := new(plugins.SingleBindingHandler)
-				sbh.Handler = handler
-				wrapper = sbh.Wrapper
-			}
-		}
-
-		if !ok {
-			handler, ok := sym.(func(map[string]interface{}, interface{}) (interface{}, int, error))
-			if ok {
-				sbpmh := new(plugins.SingleBindingWithParamMapHandler)
-				sbpmh.Handler = handler
-				wrapper = sbpmh.Wrapper
-			}
-		}
-
-		if !ok {
-			fmt.Printf("%s not webhook handler function.\n", handlerName)
-		}
-
-	} else {
-
-		fmt.Printf("Lookup Error = %s\n", err.Error())
-
-	}
-
-	return wrapper
-}
 
 func main() {
 	e := echo.New()
@@ -188,7 +59,19 @@ func main() {
 	e.Logger.Infof("Domain name = %s\n", domain)
 	e.Logger.Infof("Data directory = %s\n", datapath)
 
-	loadEchoHandlerFuncs(e, "./handlers")
+	handlerMap := make(map[string]echo.HandlerFunc)
+	handlerMap, err := plugins.LoadEchoHandlerFuncs(e, handlerMap, "./handlers")
+
+	if err != nil {
+		e.Logger.Warnf("Error in handler loading : %s", err)
+	}
+
+	e.Logger.Info("Available path(s) : ")
+
+	routes := e.Routes()
+	for i := 0; i < len(routes); i++ {
+		e.Logger.Infof("%s[%s] = %s", routes[i].Path, routes[i].Method, routes[i].Name)
+	}
 
 	if domain == "" {
 		e.Logger.Fatal(e.Start(httpaddr))
