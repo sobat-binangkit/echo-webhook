@@ -1,132 +1,112 @@
 package plugins
 
 import (
-	"reflect"
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"plugin"
 
 	"github.com/labstack/echo"
 )
 
-type (
-	SignatureType int
-
-	GenericHandler struct {
-		Signature SignatureType
-	}
-
-	ParamMapHandler struct {
-		GenericHandler
-		Handler func(params map[string]interface{}) (interface{}, int, error)
-	}
-
-	SingleBindingHandler struct {
-		GenericHandler
-		Handler func(inp interface{}) (interface{}, int, error)
-	}
-
-	SingleBindingWithParamMapHandler struct {
-		GenericHandler
-		Handler func(params map[string]interface{}, inp interface{}) (interface{}, int, error)
-	}
-)
-
-const (
-	EchoContext = iota
-	ParamMap
-	SingleBinding
-	SingleBindingWithParamMap
-)
-
-func (s SignatureType) String() string {
-	return [...]string{"EchoContext", "ParamMap", "SingleBinding", "SingleBindingWithMap"}[s]
+func changeFileExtension(filename, newext string) string {
+	ext := filepath.Ext(filename)
+	name := filename[0 : len(filename)-len(ext)]
+	return name + newext
 }
 
-func createParamMap(c echo.Context) map[string]interface{} {
+func getConfigMap(filename string) (configMap map[string]map[string]string, err error) {
+	configMap = make(map[string]map[string]string)
 
-	params := make(map[string]interface{})
-
-	pathParams := make(map[string]string)
-	for _, name := range c.ParamNames() {
-		pathParams[name] = c.Param(name)
-	}
-
-	if len(pathParams) > 0 {
-		params["pathParams"] = pathParams
-	}
-
-	values, err := c.FormParams()
+	file, err := os.Open(filename)
 	if err == nil {
-		formParams := make(map[string][]string)
-		for name, value := range values {
-			formParams[name] = value
-		}
-
-		if len(formParams) > 0 {
-			params["formParams"] = formParams
-		}
+		decoder := json.NewDecoder(file)
+		err = decoder.Decode(&configMap)
 	}
 
-	queryParams := make(map[string][]string)
-	for name, value := range c.QueryParams() {
-		queryParams[name] = value
-	}
-
-	if len(queryParams) > 0 {
-		params["queryParams"] = queryParams
-	}
-
-	return params
-
+	return configMap, err
 }
 
-func (h ParamMapHandler) Wrapper(c echo.Context) error {
+func getEchoHandlerFunc(p *plugin.Plugin, handlerName string) (wrapper echo.HandlerFunc, err error) {
 
-	params := createParamMap(c)
+	sym, err := p.Lookup(handlerName)
 
-	res, code, err := h.Handler(params)
+	if err == nil {
 
-	if err != nil {
-		return err
+		ok := true
+
+		wrapper, ok = sym.(func(echo.Context) error)
+
+		if !ok {
+			err = fmt.Errorf("%s not webhook handler function.\n", handlerName)
+		}
+
 	} else {
-		return c.JSON(code, res)
+
+		wrapper = nil
+
 	}
 
+	return wrapper, err
 }
 
-func (h SingleBindingHandler) Wrapper(c echo.Context) error {
+func LoadEchoHandlerFuncs(e *echo.Echo, handlers map[string]echo.HandlerFunc, dirname string) (map[string]echo.HandlerFunc, error) {
 
-	ht := reflect.TypeOf(h.Handler)
-	vt := ht.In(0)
-	value := reflect.Zero(vt)
+	methods := []string{"POST", "GET", "PUT", "PATCH", "DELETE"}
 
-	err := c.Bind(value)
+	filenames, err := filepath.Glob(dirname + "/*.json")
 
 	if err == nil {
-		res, code, err := h.Handler(value)
-		if err == nil {
-			return c.JSON(code, res)
+
+		e.Logger.Infof("Loading = %-v ...\n", filenames)
+
+		for _, filename := range filenames {
+
+			libname := changeFileExtension(filename, ".so")
+			e.Logger.Debugf("libname = %s\n", libname)
+
+			p, err := plugin.Open(libname)
+
+			if err == nil {
+
+				configMap, _ := getConfigMap(filename)
+				e.Logger.Debugf("configs : %-v\n", configMap)
+
+				for path, config := range configMap {
+
+					for _, method := range methods {
+
+						handlerName, ok := config[method]
+						if ok {
+							handler, ok := handlers[handlerName]
+
+							if !ok {
+								handler, err = getEchoHandlerFunc(p, handlerName)
+
+								if err == nil {
+									handlers[handlerName] = handler
+								}
+							}
+
+							if handler != nil {
+								e.Add(method, path, handler)
+							}
+						}
+					}
+
+				}
+
+			} else {
+
+				e.Logger.Debugf("Fail to open %s [%s]\n", libname, err.Error())
+
+			}
+
 		}
+
 	}
 
-	return err
+	return handlers, err
 
-}
-
-func (h SingleBindingWithParamMapHandler) Wrapper(c echo.Context) error {
-
-	ht := reflect.TypeOf(h.Handler)
-	vt := ht.In(1)
-	value := reflect.Zero(vt)
-
-	err := c.Bind(value)
-
-	if err == nil {
-		params := createParamMap(c)
-
-		res, code, err := h.Handler(params, value)
-		if err == nil {
-			return c.JSON(code, res)
-		}
-	}
-
-	return err
 }
