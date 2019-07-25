@@ -9,6 +9,7 @@ import (
 	"golang.org/x/crypto/acme/autocert"
 
 	"github.com/sobat-binangkit/webhook/plugins"
+	"github.com/sobat-binangkit/webhook/utils"
 )
 
 func main() {
@@ -70,7 +71,15 @@ func main() {
 
 	routes := e.Routes()
 	for i := 0; i < len(routes); i++ {
-		e.Logger.Infof("%s[%s] = %s", routes[i].Path, routes[i].Method, routes[i].Name)
+		if level == "DEBUG" {
+			e.Logger.Debugf("%s[%s] = %s", routes[i].Path, routes[i].Method, routes[i].Name)
+		} else {
+			e.Logger.Infof("%s[%s] = %s", routes[i].Path, routes[i].Method)
+		}
+	}
+
+	if len(routes) == 0 {
+		e.GET("/", utils.DefaultHandler)
 	}
 
 	if domain == "" {
