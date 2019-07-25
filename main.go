@@ -57,8 +57,8 @@ func main() {
 	}
 	ssladdr = ":" + ssladdr
 
-	e.Logger.Infof("Domain name = %s\n", domain)
-	e.Logger.Infof("Data directory = %s\n", datapath)
+	e.Logger.Infof("Domain name = %s", domain)
+	e.Logger.Infof("Data directory = %s", datapath)
 
 	handlerMap := make(map[string]echo.HandlerFunc)
 	handlerMap, err := plugins.LoadEchoHandlerFuncs(e, handlerMap, "./handlers")
