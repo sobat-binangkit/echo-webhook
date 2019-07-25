@@ -27,13 +27,13 @@ RUN git clone ${gitaddr} .
 RUN go get -d -v
 
 # Build the binary.
-RUN CGO_ENABLED=0 GOOS=linux go build -a -o /go/bin/echosvr .
+RUN GOOS=linux go build -a -o /go/bin/echosvr .
 
 ############################
-# STEP 2 build a small image
+# STEP 2 build a smaller image with dynamic link 
 ############################
 
-FROM scratch
+FROM alpine
 
 # Build Time Variables
 ARG rootpath=/app
