@@ -63,15 +63,15 @@ func LoadEchoHandlerFuncs(e *echo.Echo, handlers map[string]echo.HandlerFunc, di
 
 		for _, filename := range filenames {
 
+			configMap, _ := getConfigMap(dirname + "/" + filepath.Base(filename))
+			e.Logger.Debugf("configs : %-v", configMap)
+
 			libname := dirname + "/" + filepath.Base(changeFileExtension(filename, ".so"))
 			e.Logger.Debugf("libname = %s", libname)
 
 			p, err := plugin.Open(libname)
 
 			if err == nil {
-
-				configMap, _ := getConfigMap(dirname + "/" + filepath.Base(filename))
-				e.Logger.Debugf("configs : %-v", configMap)
 
 				for path, config := range configMap {
 
