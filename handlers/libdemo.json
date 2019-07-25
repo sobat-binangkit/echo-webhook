@@ -1,3 +1,4 @@
 {
-	"/" : {"GET" : "GetHelloHandler","POST" : "GetHelloHandler"}
+	"/hello" : {"GET" : "GetHelloHandler","POST" : "GetHelloHandler"},
+	"/echo/:path1/:path2" : {"GET" : "GetParamInfo","POST" : "PostParamInfo"}
 }

@@ -1,4 +1,0 @@
-{
-	"/" : {"GET" : "GetHello"},
-	"/time" : {"GET" : "GetTimestamp"}
-}
