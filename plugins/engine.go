@@ -59,19 +59,19 @@ func LoadEchoHandlerFuncs(e *echo.Echo, handlers map[string]echo.HandlerFunc, di
 
 	if err == nil {
 
-		e.Logger.Infof("Loading = %-v ...\n", filenames)
+		e.Logger.Infof("Loading = %-v ...", filenames)
 
 		for _, filename := range filenames {
 
-			libname := changeFileExtension(filename, ".so")
-			e.Logger.Debugf("libname = %s\n", libname)
+			libname := dirname + "/" + filepath.Base(changeFileExtension(filename, ".so"))
+			e.Logger.Debugf("libname = %s", libname)
 
 			p, err := plugin.Open(libname)
 
 			if err == nil {
 
-				configMap, _ := getConfigMap(filename)
-				e.Logger.Debugf("configs : %-v\n", configMap)
+				configMap, _ := getConfigMap(dirname + "/" + filepath.Base(filename))
+				e.Logger.Debugf("configs : %-v", configMap)
 
 				for path, config := range configMap {
 
@@ -99,7 +99,7 @@ func LoadEchoHandlerFuncs(e *echo.Echo, handlers map[string]echo.HandlerFunc, di
 
 			} else {
 
-				e.Logger.Debugf("Fail to open %s [%s]\n", libname, err.Error())
+				e.Logger.Debugf("Fail to open %s [%s]", libname, err.Error())
 
 			}
 
