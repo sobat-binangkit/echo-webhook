@@ -19,7 +19,7 @@ ARG gitaddr=https://github.com/${repouser}/${reponame}.git
 WORKDIR ${currdir}
 
 # Get the source from github.com.
-Run echo "Get the source from $gitaddr"
+Run echo "Get the source from ${gitaddr}"
 RUN git clone ${gitaddr} .
 
 # Fetch dependencies.
@@ -41,7 +41,8 @@ ARG httpport=8080
 ARG httpsport=8585
 
 # Environment Variables
-ENV DATA_PATH=$rootpath
+ENV DATA_DIR=$rootpath/data
+ENV PLUGIN_DIR=$rootpath/handlers
 ENV HTTP_PORT=$httpport
 ENV HTTPS_PORT=$httpsport 
 
