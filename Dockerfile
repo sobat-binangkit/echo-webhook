@@ -3,7 +3,7 @@
 ############################
 FROM golang:alpine AS builder
 
-# Maintainer
+# Maintainer Name
 LABEL maintainer="Ahmad R. Djarkasih<djarkasih@gmail.com>"
 
 # Install git.
