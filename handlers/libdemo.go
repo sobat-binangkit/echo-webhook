@@ -19,7 +19,7 @@ func GetHelloHandler(c echo.Context) (err error) {
 
 	err = c.Bind(cfg)
 	if err != nil {
-		c.Logger().Warnf("Binding error : %s", err.Error())
+		c.Logger().Warnf("Binding error = %s", err.Error())
 	}
 
 	if cfg.Greeting == "" {
