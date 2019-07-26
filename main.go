@@ -79,7 +79,7 @@ func main() {
 		if level == "DEBUG" {
 			e.Logger.Debugf("%s[%s] = %s", routes[i].Path, routes[i].Method, routes[i].Name)
 		} else {
-			e.Logger.Infof("%s[%s] = %s", routes[i].Path, routes[i].Method)
+			e.Logger.Infof("%s[%s]", routes[i].Path, routes[i].Method)
 		}
 	}
 
