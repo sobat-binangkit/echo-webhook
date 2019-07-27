@@ -1,7 +1,7 @@
 ############################
 # STEP 1
 ############################
-FROM debian:stable-slim
+FROM frolvlad/alpine-glibc
 
 # Maintainer
 LABEL maintainer="Ahmad R. Djarkasih<djarkasih@gmail.com>"
