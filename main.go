@@ -38,15 +38,12 @@ func main() {
 
 	e.Logger.SetLevel(debugLvl)
 
-	datadir := os.Getenv("DATA_DIR")
-	if datadir == "" {
-		datadir = "./data"
+	appDir := os.Getenv("APP_DIR")
+	if appDir == "" {
+		appDir = "."
 	}
 
-	plugindir := os.Getenv("PLUGIN_DIR")
-	if plugindir == "" {
-		plugindir = "./handlers"
-	}
+	pluginDir := appDir + "/handlers"
 
 	domain := os.Getenv("DOMAIN_NAME")
 
@@ -63,10 +60,10 @@ func main() {
 	ssladdr = ":" + ssladdr
 
 	e.Logger.Infof("Domain name = %s", domain)
-	e.Logger.Infof("Data directory = %s", datadir)
+	e.Logger.Infof("Application directory = %s", appDir)
 
 	handlerMap := make(map[string]echo.HandlerFunc)
-	handlerMap, err := plugins.LoadEchoHandlerFuncs(e, handlerMap, plugindir)
+	handlerMap, err := plugins.LoadEchoHandlerFuncs(e, handlerMap, pluginDir)
 
 	if err != nil {
 		e.Logger.Warnf("Error in handler loading : %s", err)
@@ -92,7 +89,7 @@ func main() {
 	} else {
 		e.AutoTLSManager.HostPolicy = autocert.HostWhitelist(domain)
 		// Cache certificates
-		e.AutoTLSManager.Cache = autocert.DirCache(datadir)
+		e.AutoTLSManager.Cache = autocert.DirCache(appDir)
 		e.Logger.Fatal(e.StartAutoTLS(ssladdr))
 
 	}
