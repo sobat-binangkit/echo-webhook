@@ -1,55 +1,26 @@
 ############################
-# STEP 1 build executable binary
+# STEP 1
 ############################
-FROM golang:alpine AS builder
+FROM alpine:latest
 
 # Maintainer
 LABEL maintainer="Ahmad R. Djarkasih<djarkasih@gmail.com>"
 
-# Install git.
-# Git is required for fetching the dependencies.
-RUN apk update && apk add --no-cache git
-
 # Build Time Variables
-ARG repouser=djarkasih
-ARG reponame=webhook
-ARG currdir=/go/src/github.com/${repouser}/${reponame}
-ARG gitaddr=https://github.com/${repouser}/${reponame}.git
-
-WORKDIR ${currdir}
-
-# Get the source from github.com.
-Run echo "Get the source from ${gitaddr}"
-RUN git clone ${gitaddr} .
-
-# Fetch dependencies.
-# Using go get.
-RUN go get -d -v
-
-# Build the binary.
-RUN GOOS=linux go build -a -o /go/bin/echosvr .
-
-############################
-# STEP 2 build a smaller image with dynamic link 
-############################
-
-FROM alpine
-
-# Build Time Variables
+ARG appname=webhook
 ARG rootpath=/app
 ARG httpport=8080
 ARG httpsport=8585
 
 # Environment Variables
+ENV APP_NAME=$appname
+ENV ROOT_DIR=$rootpath
 ENV DATA_DIR=$rootpath/data
 ENV PLUGIN_DIR=$rootpath/handlers
 ENV HTTP_PORT=$httpport
 ENV HTTPS_PORT=$httpsport 
 
-WORKDIR /app
+ADD ./$APP_NAME $ROOT_DIR/$APP_NAME
 
-# Copy our static executable.
-COPY --from=builder /go/bin/echosvr .
-
-# Run the hello binary.
-ENTRYPOINT ["/app/echosvr"]
+# Run the app
+ENTRYPOINT $ROOT_DIR/$APP_NAME
